@@ -6,3 +6,6 @@ listener:
 
 push:
 	golangci-lint run && git push origin main
+
+app:
+	docker build . -t tow_service

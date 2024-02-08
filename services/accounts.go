@@ -209,3 +209,11 @@ func (s *AccountService) FollowAccount(
 	}
 	return nil
 }
+
+func (s *AccountService) TradeWally(ctx context.Context,
+	input TradeWallyInput,
+	accountsRepo repository.AccountsRepoInterface[models.Account],
+	config *env.Config,
+) error {
+	return nil
+}

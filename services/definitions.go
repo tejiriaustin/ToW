@@ -40,7 +40,7 @@ type AccountServiceInterface interface {
 		config *env.Config,
 	) error
 
-	TradeWallys(
+	TradeWally(
 		ctx context.Context,
 		input TradeWallyInput,
 		accountsRepo repository.AccountsRepoInterface[models.Account],

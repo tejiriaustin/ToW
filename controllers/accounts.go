@@ -118,7 +118,7 @@ func (c *AccountController) FreezeAccount(
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		accountId := ctx.Param("id")
+		accountId := ctx.Param("accountId")
 
 		_, err := accountService.FreezeAccount(ctx, services.FreezeAccountInput{AccountId: accountId}, accountsRepo)
 		if err != nil {
@@ -133,15 +133,26 @@ func (c *AccountController) FreezeAccount(
 func (c *AccountController) FollowAccount(
 	accountService services.AccountServiceInterface,
 	accountsRepo repository.AccountsRepoInterface[models.Account],
+	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		_, err := GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
+		account, err := GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
 			return
 		}
+		input := services.FollowAccountInput{
+			AccountId:         ctx.Param("accountId"),
+			FollowerAccountId: account.Id,
+		}
 
+		err = accountService.FollowAccount(ctx, input, accountsRepo, conf)
+		if err != nil {
+			response.FormatResponse(ctx, http.StatusUnauthorized, err.Error(), nil)
+			return
+		}
+		response.FormatResponse(ctx, http.StatusOK, "successful", nil)
 	}
 }
 
