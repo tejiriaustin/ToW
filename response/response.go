@@ -1,0 +1,23 @@
+package response
+
+import (
+	"github.com/tejiriaustin/ToW/models"
+)
+
+func SingleAccountResponse(account *models.Account) map[string]interface{} {
+	return map[string]interface{}{
+		"email":     account.Email,
+		"firstName": account.FirstName,
+		"lastName":  account.LastName,
+		"phone":     account.Phone,
+		"token":     account.Token,
+	}
+}
+
+func MultipleAccountResponse(accounts []models.Account) interface{} {
+	m := make([]map[string]interface{}, 0, len(accounts))
+	for _, a := range accounts {
+		m = append(m, SingleAccountResponse(&a))
+	}
+	return m
+}
