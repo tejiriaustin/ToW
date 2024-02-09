@@ -35,7 +35,7 @@ func BindRoutes(
 		customer.POST("/subscribe", controllers.AccountController.Subscribe(sc.AccountsService, rc.AccountsRepo))
 		customer.POST("/invest", controllers.AccountController.Invest(sc.AccountsService, rc.AccountsRepo))
 		customer.POST("/buy-share", controllers.AccountController.BuyShare(sc.AccountsService, rc.AccountsRepo))
-		customer.POST("/trade-wallys", controllers.AccountController.TradeWally(sc.AccountsService, rc.AccountsRepo, conf))
+		customer.POST("/trade-wally", controllers.AccountController.TradeWally(sc.AccountsService, rc.AccountsRepo, conf))
 
 		wallys := customer.Group("/wallys")
 		wallys.POST("/transfer", nil)
