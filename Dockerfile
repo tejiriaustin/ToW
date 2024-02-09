@@ -7,6 +7,7 @@ COPY go.mod ./
 RUN go mod download
 
 COPY *.go ./
+COPY .env ./
 
 RUN go build -o /go-docker-demo
 

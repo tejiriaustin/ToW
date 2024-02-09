@@ -45,7 +45,6 @@ func startApi(cmd *cobra.Command, args []string) {
 	)
 
 	server.Start(ctx, sc, rc, &config)
-
 }
 
 func setApiEnvironment() env.Config {

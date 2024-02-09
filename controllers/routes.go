@@ -28,7 +28,7 @@ func BindRoutes(
 		response.FormatResponse(c, http.StatusOK, "OK", nil)
 	})
 
-	customer := r.Group("/customer")
+	customer := r.Group("/accounts")
 	{
 		customer.POST("", controllers.AccountController.CreateCustomerAccount(sc.AccountsService, sc.TokenProvider, rc.AccountsRepo))
 		customer.POST("/follow/:accountId", controllers.AccountController.FollowAccount(sc.AccountsService, rc.AccountsRepo, conf))
