@@ -1,4 +1,4 @@
-package cron
+package housekeeper
 
 import (
 	"github.com/robfig/cron"
