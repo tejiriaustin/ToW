@@ -11,8 +11,8 @@ RUN go mod download
 COPY *.go ./
 COPY .env ./
 
-RUN go build -o /go-docker-demo
+RUN go build -o /tow_service
 
 EXPOSE 8080
 
-CMD [ "/ToW api" ]
+CMD [ "/tow_service api" ]

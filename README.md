@@ -38,7 +38,7 @@ git clone git@github.com:tejiriaustin/ToW.git
 3. Contact the admin of this project to get your personal credentials
 4. Run command to start the application
     ```sh
-   make app
+   make service
    ```
 5.Test on postman
 

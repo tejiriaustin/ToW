@@ -10,5 +10,5 @@ push:
 lint:
 	golangci-lint run
 
-app:
+service:
 	docker build . -t tow_service
