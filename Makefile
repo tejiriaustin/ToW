@@ -11,4 +11,4 @@ lint:
 	golangci-lint run
 
 service:
-	docker build . -t tow_service
+	docker-compose up --build tow_service

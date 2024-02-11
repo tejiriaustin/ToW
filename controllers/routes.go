@@ -33,7 +33,7 @@ func BindRoutes(
 		customer.POST("", controllers.AccountController.CreateCustomerAccount(sc.AccountsService, sc.TokenProvider, rc.AccountsRepo, conf))
 		customer.POST("/follow/:accountId", controllers.AccountController.FollowAccount(sc.AccountsService, rc.AccountsRepo, rc.FollowerRepo, conf))
 		customer.POST("/subscribe", controllers.AccountController.Subscribe(sc.AccountsService, rc.AccountsRepo, conf))
-		customer.POST("/invest", controllers.AccountController.BuyShare(sc.AccountsService, sc.WalletService, rc.AccountsRepo, rc.WalletsRepo, conf))
+		customer.POST("/buy-share", controllers.AccountController.BuyShare(sc.AccountsService, sc.WalletService, rc.AccountsRepo, rc.WalletsRepo, conf))
 		customer.POST("/trade-wally", controllers.AccountController.TradeWally(sc.AccountsService, rc.AccountsRepo, conf)) // TODO: not sure what selling looks like
 	}
 
