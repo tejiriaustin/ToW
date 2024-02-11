@@ -14,7 +14,7 @@ type (
 	}
 
 	TokenProvider interface {
-		GenerateToken(content any) (string, error)
+		GenerateToken(conf *env.Config, content any) (string, error)
 	}
 
 	Claims struct {
@@ -29,14 +29,14 @@ func NewTokenProvider() TokenProvider {
 	return &TokenGenerator{}
 }
 
-func (p *TokenGenerator) GenerateToken(content any) (string, error) {
+func (p *TokenGenerator) GenerateToken(conf *env.Config, content any) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, &Claims{
 		Exp:           time.Now().Add(3600 * time.Minute),
 		Authorization: true,
 		Content:       content,
 	})
 
-	pkey := p.conf.GetAsBytes(env.JwtSecret)
+	pkey := conf.GetAsBytes(env.JwtSecret)
 	tokenString, err := token.SignedString(pkey)
 	if err != nil {
 		return "", err

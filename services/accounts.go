@@ -3,13 +3,14 @@ package services
 import (
 	"context"
 	"errors"
-	"github.com/tejiriaustin/ToW/env"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 
+	"github.com/google/uuid"
+
+	"github.com/tejiriaustin/ToW/env"
 	"github.com/tejiriaustin/ToW/models"
 	"github.com/tejiriaustin/ToW/repository"
-
-	"github.com/google/uuid"
 )
 
 var (
@@ -39,13 +40,17 @@ type (
 	FreezeAccountInput struct {
 		AccountId string
 	}
-
+	GetAccountInput struct {
+		AccountId string
+	}
 	SubscribeAccountInput struct {
 		AccountId string
-		Price     string
+		Amount    int64
 	}
 	InvestAccountInput struct {
-		AccountId string
+		InvestorId     string
+		InvestorWallet *models.Wallet
+		Account        *models.Account
 	}
 	FollowAccountInput struct {
 		AccountId         string
@@ -57,14 +62,17 @@ type (
 	}
 )
 
+func NewAccountService() *AccountService {
+	return &AccountService{}
+}
+
 func (s *AccountService) CreateAccount(
 	ctx context.Context,
 	input CreateAccountInput,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
-) (models.Account, error) {
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+) (*models.Account, error) {
 
-	account := models.Account{
-		BaseModel:     models.NewBaseModel(),
+	account := &models.Account{
 		FirstName:     input.FirstName,
 		LastName:      input.LastName,
 		Phone:         input.Phone,
@@ -88,14 +96,19 @@ func (s *AccountService) CreateAccount(
 func (s *AccountService) FreezeAccount(
 	ctx context.Context,
 	input FreezeAccountInput,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
 ) (*models.Account, error) {
 
 	if input.AccountId == "" {
 		return nil, errors.New("AccountId is required")
 	}
 
-	filter := repository.NewQueryFilter().AddFilter("_id", input.AccountId)
+	accountId, err := primitive.ObjectIDFromHex(input.AccountId)
+	if err != nil {
+		return nil, err
+	}
+
+	filter := repository.NewQueryFilter().AddFilter("_id", accountId)
 
 	matchedAccount, err := accountsRepo.FindOne(ctx, filter, nil)
 	if err != nil {
@@ -104,17 +117,13 @@ func (s *AccountService) FreezeAccount(
 
 	matchedAccount.Status = models.StatusFrozen
 
-	account, err := accountsRepo.Update(ctx, matchedAccount)
-	if err != nil {
-		return nil, err
-	}
-	return &account, nil
+	return accountsRepo.Update(ctx, matchedAccount)
 }
 
 func (s *AccountService) Subscribe(
 	ctx context.Context,
 	input SubscribeAccountInput,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
 ) (*models.Account, error) {
 
 	if input.AccountId == "" {
@@ -140,31 +149,66 @@ func (s *AccountService) Subscribe(
 		}
 	}
 
-	account, err := accountsRepo.Update(ctx, matchedAccount)
-	if err != nil {
-		return nil, err
-	}
-
-	return &account, nil
+	return accountsRepo.Update(ctx, matchedAccount)
 }
 
-func (s *AccountService) Invest(
+func (s *AccountService) BuyShare(
 	ctx context.Context,
 	input InvestAccountInput,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	walletsRepo repository.WalletRepoInterface[*models.Wallet],
+	conf *env.Config,
 ) error {
 
-	if input.AccountId == "" {
-		return errors.New("AccountId is required")
+	if err := input.Validate(); err != nil {
+		return err
 	}
 
+	input.InvestorWallet.Balance = input.InvestorWallet.Balance - 1
+	_, err := walletsRepo.Update(ctx, input.InvestorWallet)
+	if err != nil {
+		return err
+	}
+
+	input.Account.ShareHolders = append(input.Account.ShareHolders, input.InvestorId)
+	input.Account.Shares = input.Account.Shares - 1
+
+	_, err = accountsRepo.Update(ctx, input.Account)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i InvestAccountInput) Validate() error {
+	if i.Account == nil {
+		return errors.New("account is required")
+	}
+
+	if i.Account.Shares < 0 {
+		return errors.New("seems all the shares have been bought")
+	}
+
+	if i.InvestorId == "" {
+		return errors.New("investor identifier is required")
+	}
+
+	if i.InvestorWallet.Balance <= 0 {
+		return errors.New("insufficient balance")
+	}
+
+	if ok := StringContains(i.InvestorId, i.Account.FollowerIDs); !ok {
+		return errors.New("you need to follow this account inorder to invest")
+	}
 	return nil
 }
 
 func (s *AccountService) FollowAccount(
 	ctx context.Context,
 	input FollowAccountInput,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	followerRepo repository.FollowersRepoInterface[*models.Follower],
 	config *env.Config,
 ) error {
 
@@ -176,44 +220,73 @@ func (s *AccountService) FollowAccount(
 		return errors.New("follower Account Id is required")
 	}
 
-	var (
-		followedAccount, followerAccount models.Account
-		err                              error
-	)
-
-	{
-		filters := repository.NewQueryFilter().AddFilter("_id", input.AccountId)
-		followerAccount, err = accountsRepo.FindOne(ctx, filters, nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	if err = followerAccount.ValidateFollowSpend(config); err != nil {
-		return err
-	}
-
-	{
-		filters := repository.NewQueryFilter().AddFilter("_id", input.AccountId)
-		followedAccount, err = accountsRepo.FindOne(ctx, filters, nil)
-		if err != nil {
-			return err
-		}
-	}
-
-	followerAccount.FollowerIDs = append(followerAccount.FollowerIDs, followedAccount.ID.Hex())
-
-	_, err = accountsRepo.Update(ctx, followerAccount)
+	followerId, err := primitive.ObjectIDFromHex(input.FollowerAccountId)
 	if err != nil {
 		return err
 	}
+
+	filter := repository.
+		NewQueryFilter().
+		AddFilter("_id", followerId)
+
+	follower, err := accountsRepo.FindOne(ctx, filter, nil)
+	if err != nil {
+		return err
+	}
+
+	if err = follower.ValidateFollowSpend(config); err != nil {
+		return err
+	}
+
+	if err = follower.ValidateMaxFollowerCount(); err != nil {
+		return err
+	}
+
+	accountId, err := primitive.ObjectIDFromHex(input.AccountId)
+	if err != nil {
+		return err
+	}
+
+	followedAccount, err := accountsRepo.FindOne(ctx,
+		repository.NewQueryFilter().AddFilter("_id", accountId),
+		nil)
+	if err != nil {
+		return err
+	}
+
+	follower.FollowerIDs = append(follower.FollowerIDs, followedAccount.ID.Hex())
+	_, err = accountsRepo.Update(ctx, follower)
+	if err != nil {
+		return err
+	}
+
+	follow := &models.Follower{
+		BaseModel:      models.NewBaseModel(),
+		UserID:         followedAccount.ID,
+		FollowerUserID: follower.ID,
+	}
+	_, err = followerRepo.Create(ctx, follow)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (s *AccountService) TradeWally(ctx context.Context,
 	input TradeWallyInput,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
 	config *env.Config,
 ) error {
 	return nil
+}
+
+func (s *AccountService) GetAccount(ctx context.Context,
+	input GetAccountInput,
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+) (*models.Account, error) {
+	if input.AccountId == "" {
+		return nil, errors.New("account Id is required")
+	}
+	return accountsRepo.FindOne(ctx, repository.NewQueryFilter().AddFilter("_id", input.AccountId), nil)
 }

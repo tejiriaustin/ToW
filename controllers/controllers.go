@@ -3,6 +3,7 @@ package controllers
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt"
@@ -24,13 +25,17 @@ func New(ctx context.Context) *Controller {
 
 func GetAccountInfo(ctx *gin.Context, jwtSecret []byte) (*models.AccountInfo, error) {
 	tokenString, _ := GetAuthHeader(ctx)
-	if tokenString != "" {
+	if tokenString == "" {
 		return nil, errors.New("token not set")
 	}
 
-	claims := &services.Claims{}
+	tokens := strings.Split(tokenString, " ")
 
-	_, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+	claims := &services.Claims{
+		Content: &models.AccountInfo{},
+	}
+
+	_, err := jwt.ParseWithClaims(tokens[1], claims, func(token *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
 	if err != nil {
@@ -40,6 +45,18 @@ func GetAccountInfo(ctx *gin.Context, jwtSecret []byte) (*models.AccountInfo, er
 	return claims.Content.(*models.AccountInfo), nil
 }
 
+func IsAdmin(ctx *gin.Context, jwtSecret []byte) error {
+	info, err := GetAccountInfo(ctx, jwtSecret)
+	if err != nil {
+		return err
+	}
+
+	if info.Kind != string(models.AdminAccount) {
+		return errors.New("permission denied")
+	}
+	return nil
+}
+
 func GetAuthHeader(c *gin.Context) (string, error) {
-	return c.GetHeader("x-token-user"), nil
+	return c.GetHeader("Authorization"), nil
 }

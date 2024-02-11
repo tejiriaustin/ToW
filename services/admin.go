@@ -12,8 +12,7 @@ import (
 	"github.com/tejiriaustin/ToW/repository"
 )
 
-type AdminService struct {
-}
+type AdminService struct{}
 
 var (
 	defaultTotalDataIncome int64 = 100
@@ -21,6 +20,10 @@ var (
 
 type SetFollowSpendInput struct {
 	NewMinimumLimit int64
+}
+
+func NewAdminService() *AdminService {
+	return &AdminService{}
 }
 
 func (w AdminService) SetFollowSpend(
@@ -39,15 +42,15 @@ func (w AdminService) SetFollowSpend(
 func (w AdminService) IssueDataIncome(
 	ctx context.Context,
 	finder repository.FindCursor,
-	incomeRepo repository.IncomeRepoInterface[models.Income],
+	incomeRepo repository.IncomeRepoInterface[*models.Income],
 ) error {
 
 	filters := repository.NewQueryFilter()
-	accountGenerator, err := repository.NewModelGenerator[models.Account](ctx, finder, filters, nil)
+	accountGenerator, err := repository.NewModelGenerator[*models.Account](ctx, finder, filters, nil)
 	if err != nil {
 		return err
 	}
-	defer func(accountGenerator *repository.ModelGenerator[models.Account]) {
+	defer func(accountGenerator *repository.ModelGenerator[*models.Account]) {
 		err := accountGenerator.Close()
 		if err != nil {
 			log.Fatalf("failed to close account: %v", err.Error())
@@ -66,7 +69,7 @@ func (w AdminService) IssueDataIncome(
 				log.Fatalf("failed to find follower: %v", err.Error())
 			}
 
-			dataIncome := models.Income{
+			dataIncome := &models.Income{
 				BaseModel: models.NewBaseModel(),
 				Amount:    int64(defaultTotalDataIncome / account.FollowerCount),
 				AccountId: followerId,

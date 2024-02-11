@@ -1,0 +1,29 @@
+version: '3'
+services:
+  tow_service:
+    container_name: tow_service
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: [ "--build.bin", "./tmp/main_api api", "--build.cmd", "go build -o ./tmp/main_api ." ]
+    restart: always
+    ports:
+      - 8080:8080
+    working_dir: /app
+    volumes:
+      - ./:/app
+    environment:
+      - MONGO_DSN=mongodb+srv://slabmark_db_user:ssKRYmC4VPOoSGTV@slabmark-api-db-cluster.ze8airx.mongodb.net/?retryWrites=true&w=majority
+      - MONGO_DB_PASSWORD=ssKRYmC4VPOoSGTV
+      - MONGO_DB_NAME=tree_of_wally_cluster
+      - JWT_SECRET_KEY=hucvwrdkjnmachklaclhsjnndvc
+  mongo:
+    image: mongo
+    container_name: app_mongo
+    restart: always
+    ports:
+      - 27017:27017
+    volumes:
+      - ~/mongo:/data/db
+volumes:
+  mongodb:

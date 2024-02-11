@@ -30,22 +30,17 @@ func BindRoutes(
 
 	customer := r.Group("/accounts")
 	{
-		customer.POST("", controllers.AccountController.CreateCustomerAccount(sc.AccountsService, sc.TokenProvider, rc.AccountsRepo))
-		customer.POST("/follow/:accountId", controllers.AccountController.FollowAccount(sc.AccountsService, rc.AccountsRepo, conf))
-		customer.POST("/subscribe", controllers.AccountController.Subscribe(sc.AccountsService, rc.AccountsRepo))
-		customer.POST("/invest", controllers.AccountController.Invest(sc.AccountsService, rc.AccountsRepo))
-		customer.POST("/buy-share", controllers.AccountController.BuyShare(sc.AccountsService, rc.AccountsRepo))
-		customer.POST("/trade-wally", controllers.AccountController.TradeWally(sc.AccountsService, rc.AccountsRepo, conf))
-
-		wallys := customer.Group("/wallys")
-		wallys.POST("/transfer", nil)
-		wallys.POST("/buy", nil)
+		customer.POST("", controllers.AccountController.CreateCustomerAccount(sc.AccountsService, sc.TokenProvider, rc.AccountsRepo, conf))
+		customer.POST("/follow/:accountId", controllers.AccountController.FollowAccount(sc.AccountsService, rc.AccountsRepo, rc.FollowerRepo, conf))
+		customer.POST("/subscribe", controllers.AccountController.Subscribe(sc.AccountsService, rc.AccountsRepo, conf))
+		customer.POST("/invest", controllers.AccountController.BuyShare(sc.AccountsService, sc.WalletService, rc.AccountsRepo, rc.WalletsRepo, conf))
+		customer.POST("/trade-wally", controllers.AccountController.TradeWally(sc.AccountsService, rc.AccountsRepo, conf)) // TODO: not sure what selling looks like
 	}
 
 	admin := r.Group("/admin")
 	{
-		admin.POST("", controllers.AccountController.CreateAdminAccount(sc.AccountsService, sc.TokenProvider, rc.AccountsRepo))
-		admin.PUT("/freeze/:accountId", controllers.AccountController.FreezeAccount(sc.AccountsService, rc.AccountsRepo))
+		admin.POST("", controllers.AccountController.CreateAdminAccount(sc.AccountsService, sc.TokenProvider, rc.AccountsRepo, conf))
+		admin.PUT("/freeze/:accountId", controllers.AccountController.FreezeAccount(sc.AccountsService, rc.AccountsRepo, conf))
 		admin.POST("/issue-data-income", controllers.AdminController.IssueDataIncome(sc.AdminService, rc.AccountsRepo, rc.IncomeRepo, conf))
 		admin.PUT("/set-minimum-follow-spend", controllers.AdminController.SetMinimumFollowSpend(sc.AdminService, conf))
 	}

@@ -30,25 +30,25 @@ type (
 )
 
 type (
-	AccountsRepoInterface[T models.Account] interface {
+	AccountsRepoInterface[T models.Model] interface {
 		Creator[T]
 		Finder[T]
 		Updater[T]
 		Deleter[T]
 	}
 
-	WalletRepoInterface[T models.Wallet] interface {
+	WalletRepoInterface[T models.Model] interface {
 		Creator[T]
 		Finder[T]
 		Updater[T]
 	}
 
-	FollowersRepoInterface[T models.Follower] interface {
+	FollowersRepoInterface[T models.Model] interface {
 		Creator[T]
 		Finder[T]
 		Updater[T]
 	}
-	IncomeRepoInterface[T models.Income] interface {
+	IncomeRepoInterface[T models.Model] interface {
 		Creator[T]
 		Finder[T]
 		Updater[T]

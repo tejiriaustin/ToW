@@ -17,7 +17,9 @@ func init() {
 }
 
 func NewEnvironment() Config {
-	return Config{}
+	return Config{
+		conf: &sync.Map{},
+	}
 }
 
 func (e *Config) SetEnv(name string, value interface{}) *Config {
@@ -49,13 +51,7 @@ func (e *Config) GetInt64(key string) int64 {
 		return 0
 	}
 
-	valueAsString := value.(string)
-	valueAsInt, err := strconv.Atoi(valueAsString)
-
-	if err != nil {
-		log.Fatal("couldn't parse value as string: ", err.Error())
-		return 0
-	}
+	valueAsInt := value.(int)
 	return int64(valueAsInt)
 }
 

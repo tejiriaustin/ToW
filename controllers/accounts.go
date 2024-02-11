@@ -14,9 +14,7 @@ import (
 	"github.com/tejiriaustin/ToW/services"
 )
 
-type AccountController struct {
-	conf env.Config
-}
+type AccountController struct{}
 
 func NewAccountController() *AccountController {
 	return &AccountController{}
@@ -25,7 +23,8 @@ func NewAccountController() *AccountController {
 func (c *AccountController) CreateCustomerAccount(
 	accountService services.AccountServiceInterface,
 	tokenProvider services.TokenProvider,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req requests.CreateUserRequest
@@ -57,20 +56,21 @@ func (c *AccountController) CreateCustomerAccount(
 			return
 		}
 
-		account.Token, err = tokenProvider.GenerateToken(account)
+		account.Token, err = tokenProvider.GenerateToken(conf, account.GetAccountInfo())
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusBadRequest, err.Error(), nil)
 			return
 		}
 
-		response.FormatResponse(ctx, http.StatusOK, "successful", response.SingleAccountResponse(&account))
+		response.FormatResponse(ctx, http.StatusOK, "successful", response.SingleAccountResponse(account))
 	}
 }
 
 func (c *AccountController) CreateAdminAccount(
 	accountService services.AccountServiceInterface,
 	tokenProvider services.TokenProvider,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var req requests.CreateUserRequest
@@ -102,23 +102,29 @@ func (c *AccountController) CreateAdminAccount(
 			return
 		}
 
-		account.Token, err = tokenProvider.GenerateToken(account)
+		account.Token, err = tokenProvider.GenerateToken(conf, account.GetAccountInfo())
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusBadRequest, err.Error(), nil)
 			return
 		}
 
-		response.FormatResponse(ctx, http.StatusOK, "successful", response.SingleAccountResponse(&account))
+		response.FormatResponse(ctx, http.StatusOK, "successful", response.SingleAccountResponse(account))
 	}
 }
 
 func (c *AccountController) FreezeAccount(
 	accountService services.AccountServiceInterface,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
 		accountId := ctx.Param("accountId")
+
+		if err := IsAdmin(ctx, conf.GetAsBytes(env.JwtSecret)); err != nil {
+			response.FormatResponse(ctx, http.StatusUnauthorized, err.Error(), nil)
+			return
+		}
 
 		_, err := accountService.FreezeAccount(ctx, services.FreezeAccountInput{AccountId: accountId}, accountsRepo)
 		if err != nil {
@@ -132,12 +138,13 @@ func (c *AccountController) FreezeAccount(
 
 func (c *AccountController) FollowAccount(
 	accountService services.AccountServiceInterface,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	followerRepo repository.FollowersRepoInterface[*models.Follower],
 	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		account, err := GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
+		account, err := GetAccountInfo(ctx, conf.GetAsBytes(env.JwtSecret))
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
 			return
@@ -147,7 +154,7 @@ func (c *AccountController) FollowAccount(
 			FollowerAccountId: account.Id,
 		}
 
-		err = accountService.FollowAccount(ctx, input, accountsRepo, conf)
+		err = accountService.FollowAccount(ctx, input, accountsRepo, followerRepo, conf)
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusUnauthorized, err.Error(), nil)
 			return
@@ -158,17 +165,25 @@ func (c *AccountController) FollowAccount(
 
 func (c *AccountController) Subscribe(
 	accountService services.AccountServiceInterface,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		accountInfo, err := GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
+		var req requests.SubscribeRequest
+		err := ctx.BindJSON(&req)
+		if err != nil {
+			response.FormatResponse(ctx, http.StatusBadRequest, "Bad Request", nil)
+			return
+		}
+
+		accountInfo, err := GetAccountInfo(ctx, conf.GetAsBytes(env.JwtSecret))
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
 			return
 		}
 
-		account, err := accountService.Subscribe(ctx, services.SubscribeAccountInput{AccountId: accountInfo.Id}, accountsRepo)
+		account, err := accountService.Subscribe(ctx, services.SubscribeAccountInput{AccountId: accountInfo.Id, Amount: req.Amount}, accountsRepo)
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusBadRequest, err.Error(), nil)
 			return
@@ -179,42 +194,58 @@ func (c *AccountController) Subscribe(
 	}
 }
 
-func (c *AccountController) Invest(
-	accountService services.AccountServiceInterface,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
-) gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-
-		_, err := GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
-		if err != nil {
-			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
-			return
-		}
-
-		response.FormatResponse(ctx, http.StatusOK, "successful", nil)
-
-	}
-}
-
 func (c *AccountController) BuyShare(
 	accountService services.AccountServiceInterface,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	walletService services.WalletServiceInterface,
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	walletsRepo repository.WalletRepoInterface[*models.Wallet],
+	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		_, err := GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
+		var req requests.InvestRequest
+		err := ctx.BindJSON(&req)
+		if err != nil {
+			response.FormatResponse(ctx, http.StatusBadRequest, "bad request", nil)
+			return
+
+		}
+		accountInfo, err := GetAccountInfo(ctx, conf.GetAsBytes(env.JwtSecret))
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
 			return
 		}
 
-		response.FormatResponse(ctx, http.StatusOK, "successful", nil)
+		account, err := accountService.GetAccount(ctx, services.GetAccountInput{AccountId: req.AccountId}, accountsRepo)
+		if err != nil {
+			response.FormatResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
+			return
+		}
 
+		wallet, err := walletService.GetWallet(ctx, services.GetWalletInput{WalletId: accountInfo.Id}, walletsRepo)
+		if err != nil {
+			response.FormatResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
+			return
+		}
+
+		input := services.InvestAccountInput{
+			Account:        account,
+			InvestorId:     accountInfo.Id,
+			InvestorWallet: wallet,
+		}
+		err = accountService.BuyShare(ctx, input, accountsRepo, walletsRepo, conf)
+		if err != nil {
+			response.FormatResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
+			return
+		}
+
+		response.FormatResponse(ctx, http.StatusOK, "successful", nil)
 	}
 }
+
 func (c *AccountController) TradeWally(
 	accountService services.AccountServiceInterface,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
 	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -226,7 +257,7 @@ func (c *AccountController) TradeWally(
 			return
 		}
 
-		_, err = GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
+		_, err = GetAccountInfo(ctx, conf.GetAsBytes(env.JwtSecret))
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
 			return
@@ -236,7 +267,7 @@ func (c *AccountController) TradeWally(
 			Amount:           req.Amount,
 			RecipientDetails: req.RecipientDetails,
 		}
-		err = accountService.TradeWallys(ctx, input, accountsRepo, conf)
+		err = accountService.TradeWally(ctx, input, accountsRepo, conf)
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusBadRequest, err.Error(), nil)
 			return

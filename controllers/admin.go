@@ -13,9 +13,7 @@ import (
 	"github.com/tejiriaustin/ToW/response"
 )
 
-type AdminController struct {
-	conf env.Config
-}
+type AdminController struct{}
 
 func NewAdminController() *AdminController {
 	return &AdminController{}
@@ -23,20 +21,20 @@ func NewAdminController() *AdminController {
 
 func (c *AdminController) IssueDataIncome(
 	service services.AdminServiceInterface,
-	accountsRepo repository.AccountsRepoInterface[models.Account],
-	incomeRepo repository.IncomeRepoInterface[models.Income],
-	config *env.Config,
+	accountsRepo repository.AccountsRepoInterface[*models.Account],
+	incomeRepo repository.IncomeRepoInterface[*models.Income],
+	conf *env.Config,
 ) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 
-		_, err := GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
+		_, err := GetAccountInfo(ctx, conf.GetAsBytes(env.JwtSecret))
 		if err != nil {
 			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
 			return
 		}
 
 		go func() {
-			err := service.IssueDataIncome(context.Background(), accountsRepo, incomeRepo, config)
+			err := service.IssueDataIncome(context.Background(), accountsRepo, incomeRepo)
 			if err != nil {
 				response.FormatResponse(ctx, http.StatusInternalServerError, err.Error(), nil)
 				return
@@ -61,9 +59,8 @@ func (c *AdminController) SetMinimumFollowSpend(
 			return
 		}
 
-		_, err = GetAccountInfo(ctx, c.conf.GetAsBytes(env.JwtSecret))
-		if err != nil {
-			response.FormatResponse(ctx, http.StatusUnauthorized, "Unauthorized access", nil)
+		if err = IsAdmin(ctx, conf.GetAsBytes(env.JwtSecret)); err != nil {
+			response.FormatResponse(ctx, http.StatusUnauthorized, err.Error(), nil)
 			return
 		}
 
@@ -72,6 +69,6 @@ func (c *AdminController) SetMinimumFollowSpend(
 			response.FormatResponse(ctx, http.StatusBadRequest, "Bad Request", nil)
 			return
 		}
-		response.FormatResponse(ctx, http.StatusOK, "successful", nil)
+		response.FormatResponse(ctx, http.StatusOK, "successful", conf)
 	}
 }

@@ -3,11 +3,13 @@ package services
 import (
 	"errors"
 	"github.com/tejiriaustin/ToW/payment"
+	"reflect"
 )
 
 type (
 	Container struct {
 		AccountsService  AccountServiceInterface
+		WalletService    WalletServiceInterface
 		AdminService     AdminServiceInterface
 		PaymentProcessor payment.ProcessorProvider
 		TokenProvider    TokenProvider
@@ -20,7 +22,12 @@ type (
 )
 
 func New(opts ...Options) *Container {
-	c := &Container{}
+	c := &Container{
+		AccountsService: NewAccountService(),
+		WalletService:   NewWalletService(),
+		AdminService:    NewAdminService(),
+		TokenProvider:   NewTokenProvider(),
+	}
 
 	for _, opt := range opts {
 		err := opt(c)
@@ -39,4 +46,17 @@ func WithPaymentProcessor(provider payment.ProcessorProvider) Options {
 		c.PaymentProcessor = provider
 		return nil
 	}
+}
+
+func Contains[T any](s T, c []T) bool {
+	for _, t := range c {
+		if reflect.DeepEqual(t, s) {
+			return true
+		}
+	}
+	return false
+}
+
+func StringContains(s string, t []string) bool {
+	return Contains[string](s, t)
 }

@@ -54,7 +54,8 @@ func setApiEnvironment() env.Config {
 		SetEnv(env.EnvPort, env.GetEnv(env.EnvPort, "8080")).
 		SetEnv(env.JwtSecret, env.MustGetEnv(env.JwtSecret)).
 		SetEnv(env.MongoDsn, env.MustGetEnv(env.MongoDsn)).
-		SetEnv(env.MongoDbName, env.MustGetEnv(env.MongoDbName))
+		SetEnv(env.MongoDbName, env.MustGetEnv(env.MongoDbName)).
+		SetEnv(env.MinimumFollowSpend, 1)
 
 	return staticEnvironment
 }

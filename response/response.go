@@ -6,11 +6,13 @@ import (
 
 func SingleAccountResponse(account *models.Account) map[string]interface{} {
 	return map[string]interface{}{
+		"_id":       account.ID.Hex(),
 		"email":     account.Email,
 		"firstName": account.FirstName,
 		"lastName":  account.LastName,
 		"phone":     account.Phone,
 		"token":     account.Token,
+		"country":   account.DOB,
 	}
 }
 

@@ -22,6 +22,15 @@ type FreezeAccountRequest struct {
 }
 
 type TradeWallyRequest struct {
-	Amount           int64
-	RecipientDetails string
+	Amount           int64  `json:"amount"`
+	RecipientDetails string `json:"recipient_details"`
+}
+
+type SubscribeRequest struct {
+	Amount    int64  `json:"amount"`
+	AccountId string `json:"account_id"`
+}
+
+type InvestRequest struct {
+	AccountId string `json:"account_id"`
 }
