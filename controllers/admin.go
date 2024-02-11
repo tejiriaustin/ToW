@@ -72,3 +72,26 @@ func (c *AdminController) SetMinimumFollowSpend(
 		response.FormatResponse(ctx, http.StatusOK, "successful", conf)
 	}
 }
+
+func (c *AdminController) GetConfigs(
+	conf *env.Config,
+) gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		req := struct {
+			MinimumFollowSpend int64 `json:"minimum_follow_spend"`
+		}{}
+
+		err := ctx.BindJSON(&req)
+		if err != nil {
+			response.FormatResponse(ctx, http.StatusBadRequest, "Bad Request", nil)
+			return
+		}
+
+		if err = IsAdmin(ctx, conf.GetAsBytes(env.JwtSecret)); err != nil {
+			response.FormatResponse(ctx, http.StatusUnauthorized, err.Error(), nil)
+			return
+		}
+
+		response.FormatResponse(ctx, http.StatusOK, "successful", response.GetConfigsResponse(conf))
+	}
+}

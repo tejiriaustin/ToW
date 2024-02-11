@@ -43,6 +43,7 @@ func BindRoutes(
 		admin.PUT("/freeze/:accountId", controllers.AccountController.FreezeAccount(sc.AccountsService, rc.AccountsRepo, conf))
 		admin.POST("/issue-data-income", controllers.AdminController.IssueDataIncome(sc.AdminService, rc.AccountsRepo, rc.IncomeRepo, conf))
 		admin.PUT("/set-minimum-follow-spend", controllers.AdminController.SetMinimumFollowSpend(sc.AdminService, conf))
+		admin.GET("/configs", controllers.AdminController.GetConfigs(conf))
 	}
 
 	//TODO: TRADE_SHARES

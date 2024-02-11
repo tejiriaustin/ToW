@@ -1,6 +1,7 @@
 package response
 
 import (
+	"github.com/tejiriaustin/ToW/env"
 	"github.com/tejiriaustin/ToW/models"
 )
 
@@ -22,4 +23,12 @@ func MultipleAccountResponse(accounts []models.Account) interface{} {
 		m = append(m, SingleAccountResponse(&a))
 	}
 	return m
+}
+
+func GetConfigsResponse(conf *env.Config) map[string]interface{} {
+	return map[string]interface{}{
+		env.JwtSecret:          conf.GetAsString(env.JwtSecret),
+		env.EnvPort:            conf.GetAsString(env.EnvPort),
+		env.MinimumFollowSpend: conf.GetAsString(env.MinimumFollowSpend),
+	}
 }
